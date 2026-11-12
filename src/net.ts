@@ -383,7 +383,7 @@ export class Net {
       // Our look direction is (-sin yaw, -cos yaw); the soldier faces +z.
       p.group.rotation.y = p.yaw + Math.PI;
       setBar(p.bar, s.health / 100);
-      if (p.anim && s.alive) animateSoldier(p.anim, s.moving, 4.4, dt);
+      if (p.anim && s.alive) animateSoldier(p.anim, s.moving, 8.4, dt);
     }
 
     for (const d of this.drops.values()) {

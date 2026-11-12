@@ -4,7 +4,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { studioLit } from './parts';
 
 const SOLDIER_URL = '/models/soldier/Soldier.glb';
-const RUN_CLIP_SPEED = 4.2; // ground speed, in m/s, at which the run animation's feet stop sliding
+const RUN_CLIP_SPEED = 6.3; // ground speed, in m/s, that the run animation is paced for
 
 /** Animation state of one soldier. */
 export interface SoldierAnim {

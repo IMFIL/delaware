@@ -142,7 +142,8 @@ export class EnemySim {
       flash: 0,
       dying: 0,
       pace: 0,
-      speed: 3.2 + Math.random() * 1.5,
+      // Scaled with the player: the quickest can catch someone walking, none can catch a sprint.
+      speed: 6.2 + Math.random() * 2.9,
       attackT: 0.4,
       detourT: 0,
       detourX: 0,

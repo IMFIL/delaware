@@ -4,8 +4,8 @@ import type { Collider } from './city';
 
 const EYE = 1.62;
 const EYE_CROUCH = 1.32;
-const WALK = 12;
-const SPRINT = 16;
+const WALK = 8.4;
+const SPRINT = 11.2;
 const SNEAK = 1.31;
 const JUMP = 8.6;
 const GRAVITY = 28;

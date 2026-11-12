@@ -146,7 +146,7 @@ export type ModReply =
 
 export const LIMITS = {
   duration: { min: 10, max: 300 },
-  flySpeed: { min: 3, max: 15 },
+  flySpeed: { min: 12, max: 40 }, // always quicker than sprinting: flight is the fast way to travel
   pellets: { min: 1, max: 5 },
   spread: { min: 0, max: 0.3 },
   explosionRadius: { min: 0, max: 4 },
