@@ -760,3 +760,84 @@ td:first-child {
   font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
+
+/* The bottom bar: quick mana commands, one per number key. */
+#hotbar .slot {
+  width: 58px;
+  height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 5px;
+  gap: 1px;
+}
+#hotbar .slot b {
+  position: static;
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  color: var(--ink);
+}
+#hotbar .slot i {
+  font-style: normal;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--cyan);
+  font-variant-numeric: tabular-nums;
+}
+#hotbar .slot.poor {
+  opacity: 0.38;
+}
+#hotbar .slot.poor i {
+  color: var(--ink);
+}
+#hotbar .slot.cast {
+  animation: cast 0.5s ease-out;
+}
+@keyframes cast {
+  from {
+    border-color: var(--cyan);
+    box-shadow: 0 0 18px rgba(41, 231, 255, 0.9);
+    background: rgba(41, 231, 255, 0.25);
+  }
+}
+
+#immune {
+  position: fixed;
+  left: 50%;
+  top: 68%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  background: var(--panel);
+  border: 1px solid rgba(125, 255, 160, 0.5);
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #7dffa0;
+  text-shadow: 0 0 10px rgba(125, 255, 160, 0.7);
+  pointer-events: none;
+}
+#immune[hidden] {
+  display: none;
+}
+
+#zone {
+  position: fixed;
+  right: 20px;
+  top: 178px;
+  width: 150px;
+  padding: 5px 0;
+  background: var(--panel);
+  border-top: 1px solid;
+  font-family: var(--display);
+  font-size: 7px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: center;
+  pointer-events: none;
+}
+#mods {
+  top: 212px;
+}

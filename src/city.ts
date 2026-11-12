@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { Tier } from './zones';
 
 /** Size of one city cell: a block plus half a road on every side. */
 export const CELL = 96;
@@ -75,6 +76,22 @@ function mulberry32(seed: number): Rand {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+/**
+ * How built-up a block is, 0 to 1: the same slow-changing value that sets tower heights,
+ * so the tall downtown clusters are also the dangerous ones.
+ */
+const districtOf = (cx: number, cz: number) => valueNoise(cx / 5 + 100, cz / 5 + 100);
+
+/** The difficulty zone of a city cell. The blocks around the starting point are always easy. */
+export function zoneOfCell(cx: number, cz: number): Tier {
+  if (cx >= -2 && cx <= 1 && cz >= -2 && cz <= 1) return 0;
+  const d = districtOf(cx, cz);
+  return d < 0.43 ? 0 : d < 0.6 ? 1 : 2;
+}
+
+/** The difficulty zone at a point in the world. */
+export const zoneAt = (x: number, z: number): Tier => zoneOfCell(Math.floor(x / CELL), Math.floor(z / CELL));
 
 function valueNoise(x: number, z: number): number {
   const ix = Math.floor(x);
@@ -424,7 +441,9 @@ function buildParts(cx: number, cz: number): Parts {
   addBox(p.glow, ex0, 0, z0 - 0.1, ex1, 0.03, z0 + 0.1, 0x8a5a22);
 
   // Street lamps along the two z-facing edges (the x-facing edges are kept clear for stairs).
-  const lampColor = r() < 0.7 ? 0xff9a2e : 0x29e7ff;
+  // Street lamps show the zone: cool white-cyan where it is easy, amber for medium, red for hard.
+  r(); // (this roll used to pick the lamp colour; keeping it leaves every building where it was)
+  const lampColor = [0x29e7ff, 0xff9a2e, 0xff2d4d][zoneOfCell(cx, cz)];
   for (const off of [15, 39, 63]) {
     lamp(p, ex0 + off, CURB, ez0 + 1, -1, lampColor);
     lamp(p, ex0 + off, CURB, ez1 - 1, 1, lampColor);
@@ -434,7 +453,7 @@ function buildParts(cx: number, cz: number): Parts {
   const bz0 = ez0 + INSET;
   const bx1 = ex1 - INSET;
   const bz1 = ez1 - INSET;
-  const district = valueNoise(cx / 5 + 100, cz / 5 + 100);
+  const district = districtOf(cx, cz);
   const hs = 0.4 + 1.5 * district * district;
   const kind = r();
   const gap = 6;

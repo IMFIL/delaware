@@ -11,6 +11,7 @@ import {
   type Point,
 } from './enemysim';
 import type { Part } from './modspec';
+import type { Tier } from './zones';
 import { buildModel, disposeModel, pbr, roundedBox } from './parts';
 import { animateSoldier, loadSoldier, makeSoldier, soldierReady, type SoldierAnim } from './soldier';
 import { HAND_LAYER } from './weapon';
@@ -27,14 +28,21 @@ export interface RemoteEnemies {
   blast(at: Point, radius: number, amount: number): void;
 }
 
-/** One enemy as reported by the server: id, x, y, z, facing, hp, flags, pace, lift. */
-export type EnemyRow = [number, number, number, number, number, number, number, number, number];
+/** One enemy as reported by the server: id, x, y, z, facing, hp, flags, pace, lift, tier. */
+export type EnemyRow = [number, number, number, number, number, number, number, number, number, number];
 
 const armor = pbr(0x6b7680, 'metal', { selfLit: 0.03, reflect: 0.6 });
 const plate = pbr(0x39414a, 'metal', { selfLit: 0.03, reflect: 0.5 });
 const suit = pbr(0x14171a, 'matte', { selfLit: 0.06, reflect: 0.15 });
 const eye = new THREE.MeshBasicMaterial({ color: 0xff2a2a });
 eye.color.multiplyScalar(2.6);
+
+/** Visor colour by difficulty tier: red, amber, then violet-white for the dangerous ones. */
+const tierEyes = [0xff2a2a, 0xffa01e, 0xd58bff].map((color, i) => {
+  const m = new THREE.MeshBasicMaterial({ color });
+  m.color.multiplyScalar(i === 2 ? 3.2 : 2.6);
+  return m;
+});
 
 const barOpts = { transparent: true, depthWrite: false, fog: false } as const;
 const barBack = new THREE.SpriteMaterial({ color: 0x05070a, opacity: 0.75, ...barOpts });
@@ -69,8 +77,10 @@ export function setBar(bar: { back: THREE.Sprite; fill: THREE.Sprite }, fraction
 
 /** Make the enemies' glowing parts show through walls. */
 export function setEnemyHighlight(on: boolean) {
-  eye.depthTest = !on;
-  eye.transparent = on; // drawn after the buildings, so they cannot cover it
+  for (const m of [eye, ...tierEyes]) {
+    m.depthTest = !on;
+    m.transparent = on; // drawn after the buildings, so they cannot cover it
+  }
 }
 
 const ball = (r: number, sx = 1, sy = 1, sz = 1) => new THREE.SphereGeometry(r, 24, 16).scale(sx, sy, sz);
@@ -272,7 +282,7 @@ export class Enemies {
     this.size = size;
     this.reportedBolts = bolts;
     const seen = new Set<number>();
-    for (const [id, x, y, z, facing, hp, flags, pace, lift] of rows) {
+    for (const [id, x, y, z, facing, hp, flags, pace, lift, tier] of rows) {
       seen.add(id);
       let v = this.views.get(id);
       if (!v) {
@@ -287,6 +297,7 @@ export class Enemies {
           flash: 0,
           dying: 0,
           pace,
+          tier: (tier === 1 || tier === 2 ? tier : 0) as Tier,
         });
       }
       const s = v.state;
@@ -323,7 +334,7 @@ export class Enemies {
   private embody(v: EnemyView) {
     v.group.remove(v.stock);
     if (soldierReady()) {
-      const { model, anim } = makeSoldier(eye);
+      const { model, anim } = makeSoldier(tierEyes[v.state.tier] ?? eye);
       v.stock = model;
       v.rig = null;
       v.anim = anim;
@@ -368,6 +379,7 @@ export class Enemies {
         flash: 0,
         dying: 0,
         pace: 0,
+        tier: 0,
       });
     }
     return this.addView(this.sim.spawnAt(x, z));
@@ -484,12 +496,12 @@ export class Enemies {
     return this.sim.damage(v.state, amount);
   }
 
-  /** Damage everything within `radius` of a point. Solo, returns the kills; shared, 0 (see `damage`). */
-  damageArea(at: THREE.Vector3, radius: number, amount: number): number {
+  /** Damage everything within `radius` of a point. Solo, returns the tier of each kill; shared, none (see `damage`). */
+  damageArea(at: THREE.Vector3, radius: number, amount: number): Tier[] {
     const point: Point = [at.x, at.y, at.z];
     if (this.remote) {
       this.remote.blast(point, radius, amount);
-      return 0;
+      return [];
     }
     return this.sim.damageArea(point, radius, amount);
   }

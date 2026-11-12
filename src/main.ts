@@ -9,7 +9,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { Sfx } from './audio';
 import { raycastHit, surfaceNormal } from './body';
-import { CELL, City } from './city';
+import { CELL, City, zoneAt } from './city';
 import { createGround } from './ground';
 import { createFilmPass } from './post';
 import { Enemies, setEnemyHighlight } from './enemies';
@@ -19,10 +19,12 @@ import { WORLD_TARGETS, type Mod, type ModReply } from './modspec';
 import { Net } from './net';
 import { RESPAWN_PROTECTION } from './netproto';
 import { NO_INPUT, Player } from './player';
+import { PRESETS } from './presets';
 import { createRain } from './rain';
 import { createSky, HAZE } from './sky';
 import { initModelLighting } from './parts';
 import { HAND_LAYER, MAG_SIZE, Weapon } from './weapon';
+import { tierMana, TIERS } from './zones';
 
 const MAX_HEALTH = 100;
 const REGEN_DELAY = 5; // seconds without damage before health comes back
@@ -92,7 +94,7 @@ composer.addPass(new OutputPass());
 const sfx = new Sfx();
 const city = new City(scene);
 const player = new Player();
-const hud = new Hud(onChat);
+const hud = new Hud(onChat, PRESETS);
 const mods = new Mods();
 const weapon = new Weapon(camera, scene, (cue) => sfx[cue]());
 const enemies = new Enemies(scene, city);
@@ -103,7 +105,7 @@ city.update(player.x, player.z, 30);
 
 // 'resume' is a light pause after the chat box closes, when the browser has not yet
 // let us recapture the mouse: the next click or key press carries on, with no menu.
-type State = 'menu' | 'playing' | 'inventory' | 'chat' | 'resume';
+type State = 'menu' | 'playing' | 'chat' | 'resume';
 let state: State = 'menu';
 let started = false;
 const keys = new Set<string>();
@@ -114,7 +116,7 @@ let leftChatAt = -1e9; // when the chat box was last closed with Escape
 const stats = { health: MAX_HEALTH, mana: 0, kills: 0 };
 let sinceHurt = 99;
 let deadFor = 0; // > 0 while waiting to respawn
-let protectedFor = 0; // seconds of respawn protection left, in multiplayer
+let protectedFor = 0; // seconds of immunity left after spawning; nothing can hurt us meanwhile
 const pvp = { kills: 0, deaths: 0 };
 const debug = { play: false };
 
@@ -238,13 +240,13 @@ canvas.addEventListener('click', () => {
 document.addEventListener('pointerlockchange', () => {
   if (document.pointerLockElement === canvas) {
     state = 'playing';
+    if (!started) protectedFor = RESPAWN_PROTECTION; // the first spawn is protected too
     started = true;
     if (!joined && !SOLO) {
       joined = true;
       net.connect(hud.playerName());
     }
     hud.showMenu(false);
-    hud.showInventory(false);
     hud.showResume(false);
   } else {
     keys.clear();
@@ -282,20 +284,11 @@ window.addEventListener('keydown', (e) => {
     if (e.code !== 'Escape') resume(); // any other key is allowed to recapture the mouse
     return;
   }
-  if (state === 'inventory') {
-    if (e.code === 'KeyE' || e.code === 'Escape') {
-      e.preventDefault();
-      hud.showInventory(false);
-      state = 'menu';
-      lock();
-    }
-    return;
-  }
   if (state !== 'playing') return;
   if (e.code === 'Space' || e.code === 'Tab') e.preventDefault();
   if (e.code === 'Tab') {
     hud.showScores([
-      { name: `${hud.playerName()} (you)`, color: '#e9e3d8', kills: pvp.kills, deaths: pvp.deaths, mana: stats.mana },
+      { name: `${hud.playerName()} (you)`, color: net.color, kills: pvp.kills, deaths: pvp.deaths, mana: stats.mana },
       ...net.scores(),
     ]);
   }
@@ -312,18 +305,12 @@ window.addEventListener('keydown', (e) => {
     document.exitPointerLock();
     return;
   }
-  if (e.code === 'KeyE') {
-    state = 'inventory';
-    hud.showInventory(true);
-    document.exitPointerLock();
-    return;
-  }
   if (e.code === 'KeyW' && !e.repeat) {
     const now = performance.now();
     if (now - lastForwardTap < 300) player.startSprint();
     lastForwardTap = now;
   }
-  if (/^Digit[1-9]$/.test(e.code)) hud.select(Number(e.code[5]) - 1);
+  if (/^Digit[1-9]$/.test(e.code) && !e.repeat) castPreset(Number(e.code[5]) - 1);
   keys.add(e.code);
 });
 window.addEventListener('keyup', (e) => {
@@ -331,13 +318,6 @@ window.addEventListener('keyup', (e) => {
   if (e.code === 'Tab') hud.showScores(null);
 });
 window.addEventListener('blur', () => keys.clear());
-window.addEventListener(
-  'wheel',
-  (e) => {
-    if (state === 'playing') hud.select(hud.selected + Math.sign(e.deltaY));
-  },
-  { passive: true },
-);
 
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -357,13 +337,13 @@ const legStart = new THREE.Vector3();
 const right = new THREE.Vector3();
 const up = new THREE.Vector3();
 
-function reward(head: boolean) {
+function reward(head: boolean, tier = 0) {
   stats.kills++;
   if (mods.fx.enemyBehavior !== 'normal') {
     hud.toast('No mana: enemies pacified'); // harmless enemies are not worth anything
     return;
   }
-  const gain = KILL_MANA + (head ? HEADSHOT_BONUS : 0);
+  const gain = tierMana(KILL_MANA + (head ? HEADSHOT_BONUS : 0), tier); // harder zones pay more
   stats.mana += gain;
   hud.toast(head ? `Headshot  +${gain} mana` : `+${gain} mana`);
 }
@@ -433,14 +413,14 @@ function shoot() {
         anyHit = true;
         if (enemies.damage(hit.enemy, (hit.head ? HEAD_DAMAGE : BODY_DAMAGE) * power, hit.head)) {
           anyKill = true;
-          reward(hit.head);
+          reward(hit.head, hit.enemy.state.tier);
         }
       }
       if (!bounces) {
         if (landed && fx.explosionRadius > 0) {
           const kills = enemies.damageArea(shotEnd, fx.explosionRadius, BODY_DAMAGE * power);
-          for (let k = 0; k < kills; k++) reward(false);
-          if (kills) anyHit = anyKill = true;
+          for (const tier of kills) reward(false, tier);
+          if (kills.length) anyHit = anyKill = true;
         }
         break;
       }
@@ -504,6 +484,24 @@ async function ask(text: string) {
   } catch {
     line.set('The Architect could not be reached.', 'warn');
   }
+}
+
+/** Cast one of the quick mana commands from the bar. Its price is on the bar, so there is nothing to confirm. */
+function castPreset(i: number) {
+  const p = PRESETS[i];
+  if (!p || deadFor > 0) return;
+  if (p.cost > stats.mana) {
+    hud.toast(`${p.name} needs ${p.cost} mana`);
+    return;
+  }
+  stats.mana -= p.cost;
+  if (p.spec.heal) {
+    stats.health = Math.min(MAX_HEALTH * mods.fx.mult.max_health, stats.health + p.spec.heal);
+  }
+  if (!p.instant) mods.add(p);
+  hud.flashPreset(i);
+  hud.toast(p.instant ? `${p.name}  −${p.cost} mana` : `${p.name}  −${p.cost} mana · ${p.duration}s`);
+  sfx.mod();
 }
 
 /** A priced mod waiting for the player to say yes or no. */
@@ -616,11 +614,11 @@ function die(by: string | null = null) {
 }
 
 function respawn() {
+  protectedFor = RESPAWN_PROTECTION;
   if (net.online) {
-    // Multiplayer: come back somewhere away from the others, briefly unhurtable.
+    // Multiplayer: come back somewhere away from the others.
     // The mana cost of dying is the share the server already dropped.
     placeAtSpawn();
-    protectedFor = RESPAWN_PROTECTION;
   } else {
     // Solo: back to the nearest intersection, with half the mana gone.
     player.x = Math.round(player.x / CELL) * CELL;
@@ -646,7 +644,7 @@ renderer.setAnimationLoop(() => {
   syncMods();
   const maxHealth = MAX_HEALTH * mods.fx.mult.max_health;
   const playing = state === 'playing';
-  // The world pauses in the menu and inventory, but not while talking to the Architect:
+  // The world pauses in the menu, but not while talking to the Architect:
   // enemies keep coming while you type.
   const running = playing || state === 'chat' || state === 'resume' || debug.play;
   const alive = deadFor <= 0;
@@ -680,7 +678,7 @@ renderer.setAnimationLoop(() => {
   ground.update(camera.position, dt, fog, mods.fx.mult.rain);
   film.update(dt);
 
-  const armed = alive && hud.selected === 0;
+  const armed = alive; // the sidearm is always in hand
   weapon.update(dt, armed, player.speed);
   if (playing && armed && firing) {
     if (weapon.ready()) shoot();
@@ -711,7 +709,7 @@ renderer.setAnimationLoop(() => {
         explode: mods.fx.enemyExplode,
       }) * mods.fx.mult.damage_taken;
     sinceHurt += dt;
-    if (alive && damage > 0) {
+    if (alive && damage > 0 && protectedFor <= 0) {
       hurt(damage);
     } else if (alive && sinceHurt > REGEN_DELAY) {
       stats.health = Math.min(maxHealth, stats.health + REGEN_RATE * mods.fx.mult.regen * dt);
@@ -728,7 +726,10 @@ renderer.setAnimationLoop(() => {
     mods.rows((id) => net.players.get(id)?.state.name ?? 'someone'),
     mods.version,
   );
-  protectedFor = Math.max(0, protectedFor - dt);
+  if (running) protectedFor = Math.max(0, protectedFor - dt);
+  hud.setImmune(alive ? protectedFor : 0);
+  hud.setZone(TIERS[zoneAt(player.x, player.z)]);
+  hud.setPresetMana(stats.mana);
   net.update(dt, {
     x: player.x,
     y: player.y,

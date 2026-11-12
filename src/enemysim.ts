@@ -1,6 +1,7 @@
 import { Body, raycast, rayBox } from './body';
-import type { Collider } from './city';
+import { zoneAt, type Collider } from './city';
 import type { Behavior } from './modspec';
+import { TIERS, type Tier } from './zones';
 
 /**
  * Enemy behaviour with no drawing in it, so the same code runs in the browser for a solo
@@ -78,6 +79,8 @@ export interface EnemyState {
   dying: number;
   /** Ground speed, for matching the run animation. */
   pace: number;
+  /** Difficulty tier, from the zone it appeared in. */
+  tier: Tier;
 }
 
 interface SimEnemy extends EnemyState {
@@ -131,6 +134,7 @@ export class EnemySim {
       id: this.nextId++,
       body,
       hp: MAX_HP,
+      tier: zoneAt(x, z),
       facing: 0,
       lift: 0,
       moving: false,
@@ -283,7 +287,7 @@ export class EnemySim {
         e.attackT -= dt;
         if (e.attackT <= 0) {
           e.attackT = HIT_EVERY;
-          hurt(target!.id, HIT_DAMAGE * tune.damage);
+          hurt(target!.id, HIT_DAMAGE * tune.damage * TIERS[e.tier].damage);
         }
       } else {
         e.attackT = Math.min(e.attackT + dt, 0.4);
@@ -400,7 +404,7 @@ export class EnemySim {
   /** Returns true if this hit killed the enemy. */
   damage(e: EnemyState, amount: number): boolean {
     if (e.dying > 0) return false;
-    e.hp -= amount / this.tune.health; // tougher enemies simply take less from each hit
+    e.hp -= amount / (this.tune.health * TIERS[e.tier].health); // tougher enemies simply take less from each hit
     e.flash = 1;
     if (e.hp > 0) return false;
     e.dying = DYING_TIME;
@@ -408,15 +412,15 @@ export class EnemySim {
     return true;
   }
 
-  /** Damage everything within `radius` of a point, falling off with distance. Returns the kills. */
-  damageArea(at: Point, radius: number, amount: number): number {
-    let kills = 0;
+  /** Damage everything within `radius` of a point, falling off with distance. Returns the tier of each enemy killed. */
+  damageArea(at: Point, radius: number, amount: number): Tier[] {
+    const kills: Tier[] = [];
     for (const e of this.list) {
       const b = e.body;
       const mid = b.y + (HEIGHT * this.tune.size) / 2;
       const d = Math.hypot(b.x - at[0], mid - at[1], b.z - at[2]);
       if (d > radius) continue;
-      if (this.damage(e, amount * (1 - (0.6 * d) / radius))) kills++;
+      if (this.damage(e, amount * (1 - (0.6 * d) / radius))) kills.push(e.tier);
     }
     return kills;
   }
