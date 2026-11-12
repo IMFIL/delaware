@@ -23,7 +23,7 @@ export const TARGETS = {
   fog: { min: 0.3, max: 3, per: 15 },
   rain: { min: 0, max: 3, per: 5 },
   enemy_speed: { min: 0.5, max: 2, per: 50 },
-  enemy_size: { min: 0.5, max: 2.5, per: 30 },
+  enemy_size: { min: 0.1, max: 100, per: 30 }, // deliberately left wide open: size is the one thing without a practical cap
   enemy_spawn_rate: { min: 0.25, max: 3, per: 40 },
   enemy_health: { min: 0.5, max: 4, per: 75 },
   enemy_damage: { min: 0.5, max: 3, per: 75 },
