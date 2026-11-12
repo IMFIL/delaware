@@ -16,13 +16,7 @@ function preset(name: string, duration: number, raw: Parameters<typeof sanitize>
 }
 
 export const PRESETS: Preset[] = [
-  preset('Haste', 30, { multipliers: [{ target: 'speed', mult: 2 }] }),
   preset('Leap', 30, { multipliers: [{ target: 'jump', mult: 3 }, { target: 'gravity', mult: 0.6 }] }),
-  preset('Armour', 30, { multipliers: [{ target: 'damage_taken', mult: 0.5 }] }),
   preset('Heal', 10, { heal: 50 }, true),
-  preset('Power', 30, { multipliers: [{ target: 'damage', mult: 2 }] }),
-  preset('Rapid', 30, { multipliers: [{ target: 'fire_rate', mult: 2 }] }),
-  preset('Big mag', 60, { multipliers: [{ target: 'mag_size', mult: 2 }, { target: 'reload_speed', mult: 2 }] }),
-  preset('Bounce', 30, { ricochets: 2 }),
-  preset('Flight', 20, { fly_speed: 10 }),
+  preset('Haste', 30, { multipliers: [{ target: 'speed', mult: 2 }] }),
 ];

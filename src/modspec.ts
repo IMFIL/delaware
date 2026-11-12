@@ -4,25 +4,29 @@
  * so the price always comes from what a mod does, never from what anyone says it is worth.
  */
 
-/** Multipliers a mod can apply. `per` is mana per doubling or halving, per minute of duration. */
+/**
+ * Multipliers a mod can apply. `min` and `max` are hard caps, and they hold for the combined
+ * total of every mod in force, not just for one mod: nothing stacks past them.
+ * `per` is mana per doubling or halving, per minute of duration.
+ */
 export const TARGETS = {
-  speed: { min: 0.2, max: 8, per: 8 },
-  jump: { min: 0.2, max: 8, per: 5 },
-  gravity: { min: 0.05, max: 3, per: 6 },
-  damage: { min: 0.1, max: 20, per: 15 },
-  fire_rate: { min: 0.2, max: 8, per: 12 },
-  mag_size: { min: 0.2, max: 10, per: 6 },
-  reload_speed: { min: 0.25, max: 6, per: 6 },
-  max_health: { min: 0.2, max: 10, per: 10 },
-  regen: { min: 0, max: 20, per: 5 },
-  damage_taken: { min: 0, max: 3, per: 20 },
-  fog: { min: 0, max: 4, per: 3 },
-  rain: { min: 0, max: 4, per: 1 },
-  enemy_speed: { min: 0.2, max: 3, per: 10 },
-  enemy_size: { min: 0.3, max: 4, per: 6 },
-  enemy_spawn_rate: { min: 0, max: 4, per: 8 },
-  enemy_health: { min: 0.1, max: 10, per: 15 },
-  enemy_damage: { min: 0, max: 5, per: 15 },
+  speed: { min: 0.5, max: 2.5, per: 40 },
+  jump: { min: 0.5, max: 3, per: 25 },
+  gravity: { min: 0.4, max: 2, per: 30 },
+  damage: { min: 0.5, max: 3, per: 75 },
+  fire_rate: { min: 0.5, max: 2.5, per: 60 },
+  mag_size: { min: 0.5, max: 3, per: 30 },
+  reload_speed: { min: 0.5, max: 3, per: 30 },
+  max_health: { min: 0.5, max: 3, per: 50 },
+  regen: { min: 0, max: 4, per: 25 },
+  damage_taken: { min: 0.4, max: 2, per: 100 },
+  fog: { min: 0.3, max: 3, per: 15 },
+  rain: { min: 0, max: 3, per: 5 },
+  enemy_speed: { min: 0.5, max: 2, per: 50 },
+  enemy_size: { min: 0.5, max: 2.5, per: 30 },
+  enemy_spawn_rate: { min: 0.25, max: 3, per: 40 },
+  enemy_health: { min: 0.5, max: 4, per: 75 },
+  enemy_damage: { min: 0.5, max: 3, per: 75 },
 } as const;
 
 export type Target = keyof typeof TARGETS;
@@ -142,14 +146,14 @@ export type ModReply =
 
 export const LIMITS = {
   duration: { min: 10, max: 300 },
-  flySpeed: { min: 3, max: 60 },
-  pellets: { min: 1, max: 10 },
+  flySpeed: { min: 3, max: 15 },
+  pellets: { min: 1, max: 5 },
   spread: { min: 0, max: 0.3 },
-  explosionRadius: { min: 0, max: 8 },
-  ricochets: { min: 0, max: 5 },
+  explosionRadius: { min: 0, max: 4 },
+  ricochets: { min: 0, max: 3 },
   fov: { min: 40, max: 120 },
   brightness: { min: 0.3, max: 3 },
-  heal: { min: 0, max: 1000 },
+  heal: { min: 0, max: 100 },
   parts: 24,
   partSize: { min: 0.005, max: 1.5 },
   partOffset: 1.2,
@@ -167,24 +171,23 @@ export const LIMITS = {
 export const PRICES = {
   flyBase: 360, // flight is the most powerful thing on offer, and priced like it
   flyPerMps: 9,
-  perExtraPellet: 6,
-  perExplosionMetre: 8,
-  perRicochet: 8,
-  fov: 2,
-  brightness: 4,
-  enemyHighlight: 20,
-  invincibleExtra: 60, // on top of the damage_taken price, when it is near zero
-  healPerPoint: 0.2, // flat
-  heldModel: 3, // flat
-  enemyModel: 40, // flat
-  playerModelSelf: 15, // flat
-  playerModelOther: 30, // flat: changing someone else costs double
+  perExtraPellet: 30,
+  perExplosionMetre: 40,
+  perRicochet: 40,
+  fov: 10,
+  brightness: 20,
+  enemyHighlight: 100,
+  healPerPoint: 1, // flat
+  heldModel: 15, // flat
+  enemyModel: 200, // flat
+  playerModelSelf: 75, // flat
+  playerModelOther: 150, // flat: changing someone else costs double
   otherPlayerFactor: 2, // stat changes aimed at another player cost this many times as much
-  enemyBehavior: 40,
-  enemyRanged: 25,
-  enemyLeap: 15,
-  enemyExplode: 20,
-  sound: 3, // flat, per sound replaced
+  enemyBehavior: 200,
+  enemyRanged: 125,
+  enemyLeap: 75,
+  enemyExplode: 100,
+  sound: 15, // flat, per sound replaced
 } as const;
 
 const clamp = (v: unknown, min: number, max: number, fallback: number) => {
@@ -263,6 +266,10 @@ export function worldPart(spec: unknown): WorldSpec {
     enemyExplode: s.enemyExplode === true,
   };
 }
+
+/** Hold a combined multiplier inside its hard caps, however many mods contributed to it. */
+export const capTotal = (target: Target, value: number) =>
+  Math.min(TARGETS[target].max, Math.max(TARGETS[target].min, value));
 
 /** One stat multiplier on a player. */
 export interface StatChange {
@@ -418,8 +425,7 @@ export function cost(s: ModSpec, duration: number): number {
     // Each doubling or halving costs the same; zero counts as four halvings.
     // Stats aimed at another player cost more than the same change to yourself.
     const onOther = !!s.targetPlayer && !(WORLD_TARGETS as readonly string[]).includes(target);
-    let price = TARGETS[target].per * Math.abs(Math.log2(Math.max(mult, 1 / 16)));
-    if (target === 'damage_taken' && mult < 0.05) price += PRICES.invincibleExtra;
+    const price = TARGETS[target].per * Math.abs(Math.log2(Math.max(mult, 1 / 16)));
     perMinute += price * (onOther ? PRICES.otherPlayerFactor : 1);
   }
   if (s.flySpeed) perMinute += PRICES.flyBase + PRICES.flyPerMps * s.flySpeed;

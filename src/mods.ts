@@ -1,6 +1,7 @@
 import type { SharedMod } from './netproto';
 import { addWorld, neutralWorld } from './worldfx';
 import {
+  capTotal,
   TARGET_NAMES,
   WORLD_TARGETS,
   worldPart,
@@ -221,6 +222,8 @@ export class Mods {
     fx.enemyRanged = world.enemyRanged;
     fx.enemyLeap = world.enemyLeap;
     fx.enemyExplode = world.enemyExplode;
+    // Caps apply to the total: stacking mods, or being cursed on top of a boost, never goes past them.
+    for (const t of TARGET_NAMES) fx.mult[t] = capTotal(t, fx.mult[t]);
     this.fx = fx;
     this.version++;
   }

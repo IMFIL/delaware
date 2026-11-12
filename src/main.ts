@@ -310,7 +310,7 @@ window.addEventListener('keydown', (e) => {
     if (now - lastForwardTap < 300) player.startSprint();
     lastForwardTap = now;
   }
-  if (/^Digit[1-9]$/.test(e.code) && !e.repeat) castPreset(Number(e.code[5]) - 1);
+  if (/^Digit[1-3]$/.test(e.code) && !e.repeat) castPreset(Number(e.code[5]) - 1);
   keys.add(e.code);
 });
 window.addEventListener('keyup', (e) => {
@@ -498,7 +498,12 @@ function castPreset(i: number) {
   if (p.spec.heal) {
     stats.health = Math.min(MAX_HEALTH * mods.fx.mult.max_health, stats.health + p.spec.heal);
   }
-  if (!p.instant) mods.add(p);
+  if (!p.instant) {
+    // Casting one that is already running restarts its timer instead of stacking a second copy.
+    const running = mods.active.find((m) => m.name === p.name);
+    if (running) mods.remove(running.id);
+    mods.add(p);
+  }
   hud.flashPreset(i);
   hud.toast(p.instant ? `${p.name}  −${p.cost} mana` : `${p.name}  −${p.cost} mana · ${p.duration}s`);
   sfx.mod();

@@ -1,5 +1,5 @@
 import { DEFAULT_TUNING, type EnemyTuning } from './enemysim';
-import { WORLD_TARGETS, type Behavior, type Part, type WorldSpec, type WorldTarget } from './modspec';
+import { capTotal, WORLD_TARGETS, type Behavior, type Part, type WorldSpec, type WorldTarget } from './modspec';
 
 /** The combined effect of every world-changing mod in force. */
 export interface WorldFx {
@@ -31,11 +31,12 @@ export function addWorld(fx: WorldFx, w: WorldSpec) {
 export function tuningOf(fx: WorldFx): EnemyTuning {
   return {
     ...DEFAULT_TUNING,
-    speed: fx.mult.enemy_speed,
-    size: fx.mult.enemy_size,
-    spawnRate: fx.mult.enemy_spawn_rate,
-    health: fx.mult.enemy_health,
-    damage: fx.mult.enemy_damage,
+    // Capped on the combined total, so several players' mods cannot stack past the limits.
+    speed: capTotal('enemy_speed', fx.mult.enemy_speed),
+    size: capTotal('enemy_size', fx.mult.enemy_size),
+    spawnRate: capTotal('enemy_spawn_rate', fx.mult.enemy_spawn_rate),
+    health: capTotal('enemy_health', fx.mult.enemy_health),
+    damage: capTotal('enemy_damage', fx.mult.enemy_damage),
     behavior: fx.enemyBehavior,
     ranged: fx.enemyRanged,
     leap: fx.enemyLeap,
