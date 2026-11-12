@@ -1,0 +1,78 @@
+name: Deploy Delaware to Cloud Run
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGION: us-central1
+  SERVICE_NAME: delaware
+  REGISTRY: gcr.io
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker to use gcloud as credential helper
+        run: gcloud auth configure-docker
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/${{ secrets.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            .
+          docker tag \
+            ${{ env.REGISTRY }}/${{ secrets.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            ${{ env.REGISTRY }}/${{ secrets.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ secrets.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ secrets.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest
+
+      - name: Deploy to Cloud Run
+        # One instance only: every player must reach the same process, which holds the
+        # game in memory. The long timeout keeps multiplayer connections open for up to
+        # an hour; the game reconnects by itself when one is cut.
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image=${{ env.REGISTRY }}/${{ secrets.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --ingress=all \
+            --port=8080 \
+            --memory=512Mi \
+            --cpu=1 \
+            --timeout=3600 \
+            --concurrency=250 \
+            --min-instances=1 \
+            --max-instances=1 \
+            --set-env-vars="NODE_ENV=production" \
+            --set-env-vars="ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" \
+            --set-env-vars="MOD_DAILY_LIMIT=2000" \
+            --set-env-vars="MOD_MIN_GAP_SECONDS=8"
+
+      - name: Output service URL
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format='value(status.url)')
+          echo "Service deployed to: $SERVICE_URL"

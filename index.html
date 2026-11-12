@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Delaware</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <div id="crosshair"></div>
+    <div id="hotbar"></div>
+    <pre id="debug" hidden></pre>
+
+    <div id="hurt"></div>
+    <div id="hitmarker"></div>
+    <canvas id="radar" width="150" height="150"></canvas>
+    <div id="toasts"></div>
+    <div id="vitals">
+      <div class="vital">
+        <span class="label">Health</span>
+        <div class="track"><i id="hp-fill"></i></div>
+        <span class="num" id="hp-text">100</span>
+      </div>
+      <div class="vital mana">
+        <span class="label">Mana</span>
+        <span class="num" id="mana-text">0</span>
+      </div>
+    </div>
+    <div id="ammo"><span id="ammo-n">30</span><span class="of">/ ∞</span><small>Sidearm</small></div>
+    <div id="scores" hidden>
+      <table>
+        <thead><tr><th>Player</th><th>Kills</th><th>Deaths</th><th>Mana</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="mods"></div>
+    <div id="chatlog"></div>
+    <form id="chat" hidden>
+      <span>Architect</span>
+      <input id="chat-input" maxlength="300" autocomplete="off" spellcheck="false" placeholder="Ask for a change, e.g. make me fly" />
+    </form>
+    <div id="offer" hidden>
+      <h2>The Architect offers</h2>
+      <div id="offer-name"></div>
+      <div id="offer-what"></div>
+      <dl>
+        <div><dt>Cost</dt><dd id="offer-cost"></dd></div>
+        <div><dt>Lasts</dt><dd id="offer-time"></dd></div>
+        <div><dt>Mana after</dt><dd id="offer-left"></dd></div>
+      </dl>
+      <div class="keys"><span><kbd>Y</kbd> Accept</span><span><kbd>N</kbd> Decline</span></div>
+      <div class="track"><i id="offer-bar"></i></div>
+    </div>
+    <div id="resume" hidden>Click or press any key to continue</div>
+    <div id="dead" hidden>
+      <h1>Flatlined</h1>
+      <p>Rebooting</p>
+    </div>
+
+    <div id="inventory" hidden>
+      <div class="panel">
+        <h2>Inventory</h2>
+        <div class="grid" id="inv-grid"></div>
+        <div class="grid" id="inv-hotbar"></div>
+        <p class="hint">Nothing here yet. Press E to close.</p>
+      </div>
+    </div>
+
+    <div id="menu">
+      <div class="panel">
+        <h1>Delaware</h1>
+        <p id="menu-action">Click to start</p>
+        <label id="callsign-row">Name <input id="callsign" maxlength="16" autocomplete="off" spellcheck="false" /></label>
+        <table>
+          <tr><td>W A S D</td><td>Walk</td></tr>
+          <tr><td>Mouse</td><td>Look</td></tr>
+          <tr><td>Left click</td><td>Fire</td></tr>
+          <tr><td>Space</td><td>Jump</td></tr>
+          <tr><td>R</td><td>Reload</td></tr>
+          <tr><td>Double-tap W, or hold Q</td><td>Sprint</td></tr>
+          <tr><td>Shift</td><td>Crouch</td></tr>
+          <tr><td>T</td><td>Ask the Architect (costs mana)</td></tr>
+          <tr><td>E</td><td>Inventory</td></tr>
+          <tr><td>Tab</td><td>Scoreboard</td></tr>
+          <tr><td>1–9, scroll</td><td>Hotbar slot</td></tr>
+          <tr><td>F3</td><td>Position and FPS</td></tr>
+          <tr><td>Esc</td><td>Release mouse</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

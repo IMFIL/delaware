@@ -1,0 +1,28 @@
+version: "3"
+
+tasks:
+  setup:
+    desc: Install dependencies
+    cmds:
+      - npm install
+
+  start:
+    desc: Run the game locally with hot reload (game, Architect and multiplayer on http://localhost:5173)
+    cmds:
+      - npm run dev
+
+  build:
+    desc: Type-check, then build the game and the production server
+    cmds:
+      - npm run build
+
+  start:prod:
+    desc: Build and run the production server locally on http://localhost:8080
+    cmds:
+      - task: build
+      - set -a && [ -f .env.local ] && . ./.env.local; set +a; PORT=8080 npm start
+
+  docker:build:
+    desc: Build the production image
+    cmds:
+      - docker build -t delaware .
