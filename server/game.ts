@@ -5,6 +5,7 @@ import { cellColliders, CELL, type Collider } from '../src/city';
 import { EnemySim } from '../src/enemysim';
 import { cleanParts, playerPart, worldIsEmpty, worldPart } from '../src/modspec';
 import { addWorld, neutralWorld, tuningOf } from '../src/worldfx';
+import { tierMana } from '../src/zones';
 import {
   DROP_FRACTION,
   DROP_LIFETIME,
@@ -20,7 +21,12 @@ import {
   type Vec3,
 } from '../src/netproto';
 
-const COLORS = ['#29e7ff', '#ff9a2e', '#7dffa0', '#ff5fb0', '#b48bff', '#ffe14d', '#ff5a4d', '#5d8bff'];
+// One colour per player, the same on everyone's screen (visor, name, radar, scoreboard).
+// Red, amber and violet are left out: those are the enemies' visor colours.
+const COLORS = [
+  '#29e7ff', '#7dffa0', '#ff5fb0', '#ffe14d', '#5d8bff', '#ffffff', '#3df5c2', '#c6ff4d',
+  '#ff9ad5', '#9fd0ff', '#fff3a6', '#a8ffd8', '#6ea8ff', '#ffc2f0', '#d9ff8a', '#bff7ff',
+];
 const WORLD = 1e6; // positions further out than this are rejected
 const MAX_HIT = 2000;
 const HITS_PER_SECOND = 40;
@@ -172,6 +178,7 @@ export class GameServer {
     this.send(ws, {
       t: 'welcome',
       id,
+      color: me.color,
       players: [...this.players.values()].map((p) => this.pub(p)),
       drops: [...this.drops.values()].map(({ expires: _e, ...d }) => d),
     });
@@ -260,7 +267,7 @@ export class GameServer {
       case 'ehit': {
         if (!me.alive || ++me.hitsThisSecond > HITS_PER_SECOND) return;
         const enemy = this.sim.byId(Math.floor(num(msg.id, 0, 1e9)));
-        if (enemy && this.sim.damage(enemy, num(msg.dmg, 0, MAX_HIT))) this.payForKill(me, msg.head === true);
+        if (enemy && this.sim.damage(enemy, num(msg.dmg, 0, MAX_HIT))) this.payForKill(me, msg.head === true, enemy.tier);
         break;
       }
 
@@ -268,7 +275,7 @@ export class GameServer {
         const at = vec(msg.at);
         if (!at || !me.alive || ++me.hitsThisSecond > HITS_PER_SECOND) return;
         const kills = this.sim.damageArea(at, num(msg.radius, 0, 8), num(msg.dmg, 0, MAX_HIT));
-        for (let i = 0; i < kills; i++) this.payForKill(me, false);
+        for (const tier of kills) this.payForKill(me, false, tier);
         break;
       }
 
@@ -344,7 +351,7 @@ export class GameServer {
     return out;
   }
 
-  private payForKill(killer: Player, head: boolean) {
+  private payForKill(killer: Player, head: boolean, tier: number) {
     this.enemyKills++;
     // Enemies made harmless by a mod are not worth anything.
     if (this.tuning.behavior !== 'normal') {
@@ -352,7 +359,7 @@ export class GameServer {
     } else {
       this.send(killer.ws, {
         t: 'reward',
-        amount: head ? ENEMY_HEADSHOT : ENEMY_KILL,
+        amount: tierMana(head ? ENEMY_HEADSHOT : ENEMY_KILL, tier), // harder zones pay more
         reason: head ? 'headshot' : 'enemy',
       });
     }
@@ -403,6 +410,7 @@ export class GameServer {
         (s.moving ? 1 : 0) | (s.striking ? 2 : 0) | (s.dying > 0 ? 4 : 0),
         round(s.pace),
         round(s.lift),
+        s.tier,
       ],
     );
     const b = this.sim.bolts.map((bolt) => [round(bolt.x), round(bolt.y), round(bolt.z)]);

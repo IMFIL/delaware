@@ -120,6 +120,8 @@ function dropMesh(): THREE.Group {
 /** Connection to the shared game: other players, their shots, and mana left by the dead. */
 export class Net {
   id = '';
+  /** Our own colour, as every other player sees it. */
+  color = '#e9e3d8';
   online = false;
   players = new Map<string, RemotePlayer>();
   private drops = new Map<string, Drop>();
@@ -190,6 +192,7 @@ export class Net {
     switch (msg.t) {
       case 'welcome':
         this.id = msg.id;
+        this.color = msg.color;
         this.online = true;
         for (const p of msg.players) this.addPlayer(p);
         for (const d of msg.drops) this.addDrop(d);

@@ -9,7 +9,7 @@ export const KILL_REWARD = 10;
 export const DROP_FRACTION = 0.2;
 export const DROP_LIFETIME = 60; // seconds
 export const PICKUP_RADIUS = 1.6;
-export const RESPAWN_PROTECTION = 3; // seconds
+export const RESPAWN_PROTECTION = 5; // seconds of immunity after every spawn
 
 export type Vec3 = [number, number, number];
 
@@ -40,8 +40,8 @@ export interface DropState {
   amount: number;
 }
 
-/** One enemy as reported by the server: id, x, y, z, facing, hp, flags (1 moving, 2 striking, 4 dying), pace, lift. */
-export type EnemyRow = [number, number, number, number, number, number, number, number, number];
+/** One enemy as reported by the server: id, x, y, z, facing, hp, flags (1 moving, 2 striking, 4 dying), pace, lift, tier. */
+export type EnemyRow = [number, number, number, number, number, number, number, number, number, number];
 
 /** A mod whose effects everyone in the game shares. */
 export interface SharedMod {
@@ -84,7 +84,7 @@ export type ClientMsg =
   | { t: 'modsclear' };
 
 export type ServerMsg =
-  | { t: 'welcome'; id: string; players: PlayerState[]; drops: DropState[] }
+  | { t: 'welcome'; id: string; color: string; players: PlayerState[]; drops: DropState[] }
   | { t: 'full' }
   | { t: 'joined'; player: PlayerState }
   | { t: 'left'; id: string; name: string }

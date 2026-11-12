@@ -2,7 +2,6 @@ import type { ModRow } from './mods';
 import type { Mod } from './modspec';
 import { summarize } from './mods';
 
-const SLOTS = 9;
 const RADAR_RANGE = 70; // metres from centre to rim
 
 const el = (id: string) => document.getElementById(id)!;
@@ -15,10 +14,13 @@ export interface LogLine {
 }
 
 export class Hud {
-  selected = 0;
   private hotbar = el('hotbar');
-  private invHotbar = el('inv-hotbar');
-  private inventory = el('inventory');
+  private immuneEl = el('immune');
+  private zoneEl = el('zone');
+  private shownZone = '';
+  private presetCosts: number[] = [];
+  private shownAfford = '';
+  private shownImmune = -1;
   private menu = el('menu');
   private menuAction = el('menu-action');
   private debug = el('debug');
@@ -46,26 +48,23 @@ export class Hud {
   private shownMods = -1;
   private modRows: { fill: HTMLElement; time: HTMLElement }[] = [];
 
-  /** `onChat` gets the typed text, or null if the player backed out. */
-  constructor(onChat: (text: string | null) => void) {
-    const slot = (n?: number) => {
-      const s = document.createElement('div');
-      s.className = 'slot';
-      if (n !== undefined) s.dataset.n = String(n);
-      return s;
-    };
-    for (let i = 0; i < SLOTS; i++) {
-      this.hotbar.append(slot(i + 1));
-      this.invHotbar.append(slot());
-    }
-    const grid = el('inv-grid');
-    for (let i = 0; i < SLOTS * 3; i++) grid.append(slot());
-    for (const bar of [this.hotbar, this.invHotbar]) {
-      const item = document.createElement('b');
-      item.textContent = 'Sidearm';
-      bar.children[0].append(item);
-    }
-    this.select(0);
+  /**
+   * `onChat` gets the typed text, or null if the player backed out.
+   * `presets` are the quick mana commands shown on the bar, one per number key.
+   */
+  constructor(onChat: (text: string | null) => void, presets: { name: string; cost: number }[]) {
+    presets.forEach((p, i) => {
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      slot.dataset.n = String(i + 1);
+      const name = document.createElement('b');
+      name.textContent = p.name;
+      const cost = document.createElement('i');
+      cost.textContent = String(p.cost);
+      slot.append(name, cost);
+      this.hotbar.append(slot);
+      this.presetCosts.push(p.cost);
+    });
 
     // Remember the player's name between visits; invent one the first time.
     let saved = '';
@@ -94,20 +93,43 @@ export class Hud {
     this.chatInput.addEventListener('keyup', (e) => e.stopPropagation());
   }
 
-  select(i: number) {
-    this.selected = ((i % SLOTS) + SLOTS) % SLOTS;
-    for (const bar of [this.hotbar, this.invHotbar]) {
-      [...bar.children].forEach((s, n) => s.classList.toggle('selected', n === this.selected));
-    }
+  /** Dim the quick commands the player cannot afford right now. */
+  setPresetMana(mana: number) {
+    const key = this.presetCosts.map((c) => (c <= mana ? '1' : '0')).join('');
+    if (key === this.shownAfford) return;
+    this.shownAfford = key;
+    [...this.hotbar.children].forEach((slot, i) => slot.classList.toggle('poor', key[i] === '0'));
+  }
+
+  /** Light up a quick command as it is cast. */
+  flashPreset(i: number) {
+    const slot = this.hotbar.children[i] as HTMLElement | undefined;
+    if (slot) this.replay(slot, 'cast');
+  }
+
+  /** Show which difficulty zone the player is standing in, and announce it when it changes. */
+  setZone(zone: { name: string; mana: number; color: string }) {
+    if (zone.name === this.shownZone) return;
+    const first = !this.shownZone;
+    this.shownZone = zone.name;
+    this.zoneEl.textContent = `${zone.name} zone · mana ×${zone.mana}`;
+    this.zoneEl.style.color = zone.color;
+    this.zoneEl.style.borderColor = zone.color;
+    if (!first) this.toast(`Entering ${zone.name.toLowerCase()} zone`);
+  }
+
+  /** Show how many seconds of spawn immunity are left; 0 hides it. */
+  setImmune(seconds: number) {
+    const shown = Math.ceil(seconds);
+    if (shown === this.shownImmune) return;
+    this.shownImmune = shown;
+    this.immuneEl.hidden = shown <= 0;
+    this.immuneEl.textContent = `Immune ${shown}`;
   }
 
   showMenu(show: boolean, resumed = false) {
     this.menu.hidden = !show;
     this.menuAction.textContent = resumed ? 'Click to resume' : 'Click to start';
-  }
-
-  showInventory(show: boolean) {
-    this.inventory.hidden = !show;
   }
 
   /** The name the player has chosen for multiplayer. */

@@ -165,8 +165,8 @@ export const LIMITS = {
 
 /** Mana prices for everything that is not a multiplier. Per minute unless marked flat. */
 export const PRICES = {
-  flyBase: 20,
-  flyPerMps: 1,
+  flyBase: 360, // flight is the most powerful thing on offer, and priced like it
+  flyPerMps: 9,
   perExtraPellet: 6,
   perExplosionMetre: 8,
   perRicochet: 8,
