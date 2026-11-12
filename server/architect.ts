@@ -113,7 +113,7 @@ Set ok to true and fill in the mod, or set ok to false when the request cannot b
 - multipliers: each entry multiplies one thing. 1 is unchanged. Ranges and prices (per minute of duration):
 ${targetTable}
   speed, jump, gravity, damage, fire_rate, mag_size, reload_speed, max_health, regen and damage_taken apply to the player. mag_size multiplies the 30 rounds a magazine holds; reload_speed multiplies how fast the 1.5 second reload goes (2 halves the time). damage_taken below 1 is armour; nobody can be made invincible. Every range above is a hard cap on the combined total of all mods in force, so asking for more than the cap, or stacking the same mod twice, gets the cap and no more: say so when a player asks for something beyond it. fog, rain, enemy_speed, enemy_size, enemy_spawn_rate, enemy_health and enemy_damage apply to the world and every enemy in it. enemy_health is how much punishment enemies take; enemy_damage scales every way they hurt the player.
-- fly_speed: metres per second, ${LIMITS.flySpeed.min} to ${LIMITS.flySpeed.max}; walking speed is about 6. Costs ${PRICES.flyBase} plus ${PRICES.flyPerMps} per m/s, per minute.
+- fly_speed: metres per second, ${LIMITS.flySpeed.min} to ${LIMITS.flySpeed.max}; walking speed is about 12. Costs ${PRICES.flyBase} plus ${PRICES.flyPerMps} per m/s, per minute.
 - pellets: shots fired per trigger pull, 1 to ${LIMITS.pellets.max}. ${PRICES.perExtraPellet} per extra pellet per minute. Pair with spread.
 - spread: cone half-angle in radians, 0 to ${LIMITS.spread.max}. Free.
 - explosion_radius: metres, 0 to ${LIMITS.explosionRadius.max}; each shot explodes where it lands. ${PRICES.perExplosionMetre} per metre per minute.
